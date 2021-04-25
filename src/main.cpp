@@ -5,6 +5,7 @@
 #define SS_PIN 10
 #define RST_PIN 9
 
+int look = 8;
 RFID rfid(SS_PIN, RST_PIN);
 char msg[100] = " ";
 char *stt = "status";
@@ -15,7 +16,7 @@ int cards[][5] =
         {96, 90, 124, 108, 42}};
 
 String idin;
-
+unsigned long time;
 bool access = false;
 
 void disp(bool check);
@@ -24,45 +25,47 @@ void setup()
   Serial.begin(9600);
   SPI.begin();
   rfid.init();
+  pinMode(look, OUTPUT);
+
+  digitalWrite(look, HIGH);
 }
 
 void loop()
 {
-  
-    if (rfid.isCard())
+
+  if (rfid.isCard())
+  {
+    if (rfid.readCardSerial())
     {
-      if (rfid.readCardSerial())
+      //Chuyển đổi ID thẻ sang String
+      idin = "";
+      for (int i = 0; i < sizeof(rfid.serNum); i++)
       {
-        //Chuyển đổi ID thẻ sang String
-        idin = "";
+        idin += String(rfid.serNum[i]);
+        // Serial.print(rfid.serNum[i]);
+      }
+      Serial.println(idin);
+      //So sánh ID thẻ với ID có thể truy nhập
+      for (int x = 0; x < sizeof(cards); x++)
+      {
         for (int i = 0; i < sizeof(rfid.serNum); i++)
         {
-          idin += String(rfid.serNum[i]);
-          // Serial.print(rfid.serNum[i]);
-        }
-        Serial.println(idin);
-        //So sánh ID thẻ với ID có thể truy nhập
-        for (int x = 0; x < sizeof(cards); x++)
-        {
-          for (int i = 0; i < sizeof(rfid.serNum); i++)
+          access = true;
+          //Nếu khác thì gán quyền truy cập = False
+          if (rfid.serNum[i] != cards[x][i])
           {
-            access = true;
-            //Nếu khác thì gán quyền truy cập = False
-            if (rfid.serNum[i] != cards[x][i])
-            {
-              access = false;
-              break;
-            }
-          }
-          if (access)
+            access = false;
             break;
+          }
         }
+        if (access)
+          break;
       }
-      disp(access);
     }
-    rfid.halt(); //Dừng đọc
+    disp(access);
   }
-
+  rfid.halt(); //Dừng đọc
+}
 
 void disp(bool check)
 {
@@ -71,12 +74,16 @@ void disp(bool check)
     // sprintf(msg,"{\"%s\":%d}",stt,1);
     // Serial.println(msg);
     // open door in here source code
-    Serial.println("Open door");
+
+    digitalWrite(look, LOW);
+    delay(2000);
+    digitalWrite(look, HIGH);
   }
   else
   {
     // sprintf(msg,"{\"%s\":%d}",stt,0);
     // Serial.println(msg);
+    digitalWrite(look, HIGH);
   }
-  delay(1000);
+  delay(2000);
 }
